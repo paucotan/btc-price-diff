@@ -67,10 +67,10 @@ export default function BitcoinPriceCalculator() {
   const calc = calculations();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 p-4">
-      <div className="max-w-6xl mx-auto pt-8">
+    <div className="min-h-[calc(100vh-60px)] bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 p-4">
+      <div className="max-w-6xl mx-auto pt-4">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Calculator className="w-6 h-6 text-white/90" />
             <h1 className="text-2xl font-bold text-white">Bitcoin Price Calculator</h1>

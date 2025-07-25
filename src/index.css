@@ -4,9 +4,79 @@
 
 /* Custom styles */
 * {
-  @apply antialiased;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  @apply bg-black text-white;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+/* Ticker animation */
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  mask: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  -webkit-mask: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+
+.ticker-content {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 60s linear infinite;
+  padding: 0 1rem;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.ticker-container:hover .ticker-content {
+  animation-play-state: paused;
+}
+
+/* Ensure smooth animation */
+@keyframes ticker-loop {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* For browsers that support prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-content {
+    animation: none;
+    white-space: normal;
+  }
+}
+
+/* Ensure smooth scrolling */
+.ticker-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0) 0%, rgba(17, 24, 39, 1) 100%);
+  pointer-events: none;
+}
+
+/* Dark mode support */
+.dark body {
+  background-color: #111827;
+  color: #ffffff;
 }

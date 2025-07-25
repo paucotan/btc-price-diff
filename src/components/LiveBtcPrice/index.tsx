@@ -7,6 +7,21 @@ const LiveBtcPrice: React.FC = () => {
   const tickerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<Animation | null>(null);
+  const isHovered = useRef(false);
+
+  const handleMouseEnter = () => {
+    isHovered.current = true;
+    if (animationRef.current) {
+      animationRef.current.pause();
+    }
+  };
+
+  const handleMouseLeave = () => {
+    isHovered.current = false;
+    if (animationRef.current) {
+      animationRef.current.play();
+    }
+  };
 
   // Format price with appropriate decimal places
   const formatPrice = (price: number | null, symbol: string): string => {
@@ -113,26 +128,20 @@ const LiveBtcPrice: React.FC = () => {
         
         <div 
           ref={tickerRef}
-          className="overflow-hidden flex-1 relative h-6"
-          style={{ minWidth: '200px' }}
+          className="ticker-container"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
-          <div 
-            ref={contentRef}
-            className="flex items-center space-x-8 whitespace-nowrap absolute left-0 top-0"
-          >
+          <div ref={contentRef} className="ticker-content">
             {items.map((item) => (
-              <div key={item.id} className="flex items-center space-x-2">
-                <span className="font-medium">{item.label}:</span>
-                <span className="font-bold">
+              <div key={item.id} className="ticker-item">
+                <span className="text-sm font-medium text-gray-300">{item.label}</span>
+                <span className="text-sm font-mono font-medium text-white">
                   {formatPrice(item.currentPrice, item.currencySymbol)}
                 </span>
                 {item.priceChange24h !== null && (
                   <span 
-                    className={`inline-flex items-center text-xs font-medium px-1.5 py-0.5 rounded ${
-                      (item.priceChange24h >= 0) 
-                        ? 'bg-green-900/30 text-green-400' 
-                        : 'bg-red-900/30 text-red-400'
-                    }`}
+                    className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded font-medium ${item.priceChange24h >= 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}
                   >
                     {item.priceChange24h >= 0 ? (
                       <ArrowUp className="w-3 h-3 mr-0.5" />
@@ -146,18 +155,14 @@ const LiveBtcPrice: React.FC = () => {
             ))}
             {/* Duplicate items for seamless looping */}
             {items.map((item) => (
-              <div key={`${item.id}-dupe`} className="flex items-center space-x-2">
-                <span className="font-medium">{item.label}:</span>
-                <span className="font-bold">
+              <div key={`${item.id}-dupe`} className="ticker-item">
+                <span className="text-sm font-medium text-gray-300">{item.label}</span>
+                <span className="text-sm font-mono font-medium text-white">
                   {formatPrice(item.currentPrice, item.currencySymbol)}
                 </span>
                 {item.priceChange24h !== null && (
                   <span 
-                    className={`inline-flex items-center text-xs font-medium px-1.5 py-0.5 rounded ${
-                      (item.priceChange24h >= 0) 
-                        ? 'bg-green-900/30 text-green-400' 
-                        : 'bg-red-900/30 text-red-400'
-                    }`}
+                    className={`inline-flex items-center text-xs px-1.5 py-0.5 rounded font-medium ${item.priceChange24h >= 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}
                   >
                     {item.priceChange24h >= 0 ? (
                       <ArrowUp className="w-3 h-3 mr-0.5" />

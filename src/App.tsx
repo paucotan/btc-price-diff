@@ -1,4 +1,5 @@
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import BitcoinPriceCalculator from './bitcoin-price-calculator';
 import LiveBtcTicker from './components/LiveBtcPrice';
 
@@ -13,6 +14,7 @@ function App() {
       {/* Full Screen Calculator */}
       <div className="flex-1">
         <BitcoinPriceCalculator />
+        <Analytics />
       </div>
     </div>
   );

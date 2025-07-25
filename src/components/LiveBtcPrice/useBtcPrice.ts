@@ -16,16 +16,17 @@ interface CachedData {
 
 const CACHE_KEY = 'btc_ticker_data';
 const RATE_LIMIT_KEY = 'coingecko_rate_limit';
-const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes (matches refresh interval)
-const REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes (reduced from 1 minute)
+// Increased cache and refresh intervals to be more conservative with API calls
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute window for rate limiting
-const MAX_RETRIES = 2; // Reduced from 3 to be more conservative
-const BASE_BACKOFF = 2000; // Start with 2 second backoff
+const MAX_RETRIES = 1; // Reduced to 1 to be more conservative
+const BASE_BACKOFF = 3000; // Start with 3 second backoff
 
-// Enhanced fetch with rate limiting and better retry logic
+// Enhanced fetch with rate limiting, better retry logic, and improved error handling
 const fetchWithRetry = async (
   url: string, 
-  options: Record<string, unknown>,
+  options: Record<string, unknown> = {},
   retries = MAX_RETRIES,
   backoff = BASE_BACKOFF
 ): Promise<any> => {
@@ -33,57 +34,71 @@ const fetchWithRetry = async (
   const now = Date.now();
   const rateLimitData = localStorage.getItem(RATE_LIMIT_KEY);
   
-  if (rateLimitData) {
-    const { timestamp, count } = JSON.parse(rateLimitData);
-    // Reset count if we're in a new rate limit window
-    if (now - timestamp > RATE_LIMIT_WINDOW) {
-      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: now, count: 1 }));
-    } else if (count >= 10) { // Conservative limit (10 calls per minute)
-      // If we've hit the rate limit, wait until the next window
-      const timeToWait = (timestamp + RATE_LIMIT_WINDOW) - now;
-      console.log(`Rate limit reached. Waiting ${Math.ceil(timeToWait/1000)} seconds...`);
-      await new Promise(resolve => setTimeout(resolve, timeToWait));
-      // Reset the counter after waiting
-      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: Date.now(), count: 1 }));
-    } else {
-      // Increment the counter
-      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp, count: count + 1 }));
-    }
-  } else {
-    // Initialize rate limit tracking
-    localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: now, count: 1 }));
-  }
-
   try {
-    const response = await axios.get(url, { 
-      ...options, 
-      timeout: 10000, // Increased timeout
+    // Handle rate limiting
+    if (rateLimitData) {
+      const { timestamp, count } = JSON.parse(rateLimitData);
+      // Reset count if we're in a new rate limit window
+      if (now - timestamp > RATE_LIMIT_WINDOW) {
+        localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: now, count: 1 }));
+      } else if (count >= 5) { // Reduced limit to 5 calls per minute to be safe
+        // If we've hit the rate limit, wait until the next window
+        const timeToWait = (timestamp + RATE_LIMIT_WINDOW) - now;
+        console.warn(`Rate limit reached. Waiting ${Math.ceil(timeToWait/1000)} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, timeToWait + 1000)); // Add 1s buffer
+        // Reset the counter after waiting
+        localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: Date.now(), count: 1 }));
+      } else {
+        // Increment the counter
+        localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp, count: count + 1 }));
+      }
+    } else {
+      // Initialize rate limit counter
+      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: now, count: 1 }));
+    }
+    
+    // Add a small delay between requests to be extra safe
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Make the API request
+    const response = await axios({
+      ...options,
+      url,
+      method: 'GET',
+      timeout: 15000, // Increased to 15 second timeout
       headers: {
         'Accept': 'application/json',
-        'Accept-Encoding': 'gzip,deflate,compress',
+        'Cache-Control': 'no-cache',
+        ...(options.headers as object || {})
       }
     });
-    
-    // If we get a 429 (Too Many Requests), handle it
-    if (response.status === 429) {
-      const retryAfter = parseInt(response.headers['retry-after'] || '5', 10) * 1000;
-      console.log(`Rate limited. Retrying after ${retryAfter}ms...`);
-      await new Promise(resolve => setTimeout(resolve, retryAfter));
-      return fetchWithRetry(url, options, retries, backoff * 2);
-    }
-    
+
+    // Log successful API call for debugging
+    console.log(`API call to ${url} successful`);
     return response;
   } catch (error: any) {
-    if (retries > 0) {
-      // Use exponential backoff with jitter
-      const jitter = Math.random() * 1000;
-      const delay = backoff + jitter;
-      console.log(`Attempt ${MAX_RETRIES - retries + 1} failed. Retrying in ${Math.round(delay/1000)}s...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return fetchWithRetry(url, options, retries - 1, Math.min(backoff * 2, 30000)); // Cap at 30s
+    console.error(`API call failed (${retries} retries left):`, error.message);
+    
+    // If we get rate limited, wait longer before retrying
+    if (error.response?.status === 429) {
+      console.warn('Rate limited by API, waiting before retry...');
+      await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
+      // Reset rate limit counter
+      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({ timestamp: Date.now(), count: 0 }));
     }
-    console.error('Max retries reached:', error.message);
-    throw error;
+    
+    if (retries <= 0) {
+      console.error('Max retries reached, giving up');
+      throw error;
+    }
+    
+    // Exponential backoff with jitter
+    const jitter = Math.floor(Math.random() * 1000); // Add up to 1s jitter
+    const delay = backoff + jitter;
+    console.log(`Retrying in ${delay}ms...`);
+    
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return fetchWithRetry(url, options, retries - 1, Math.min(backoff * 2, 30000)); // Cap max backoff at 30s
   }
 };
 
@@ -92,7 +107,7 @@ const useBtcPrice = () => {
     { id: 'btc-usd', label: 'BTC/USD', currentPrice: null, priceChange24h: null, currencySymbol: '$' },
     { id: 'btc-eur', label: 'BTC/EUR', currentPrice: null, priceChange24h: null, currencySymbol: '€' },
     { id: 'btc-eth', label: 'BTC/ETH', currentPrice: null, priceChange24h: null, currencySymbol: 'Ξ' },
-    { id: 'btc-gold', label: 'Gold (oz)', currentPrice: null, priceChange24h: null, currencySymbol: 'oz' },
+    { id: 'gold-usd', label: 'Gold (oz)/USD', currentPrice: null, priceChange24h: null, currencySymbol: '$' },
   ]);
   
   const [isLoading, setIsLoading] = useState(true);
@@ -140,15 +155,25 @@ const useBtcPrice = () => {
     if (!isMounted.current) return;
     
     // Don't make a new request if we're already loading
-    if (isLoading) return;
+    if (isLoading) {
+      console.log('Skipping fetch - already loading');
+      return;
+    }
     
     try {
       const cachedData = getCachedData();
+      const now = Date.now();
+      
+      // Always use cached data if available, even if we're going to refresh
       if (cachedData) {
+        console.log('Using cached data from', new Date(cachedData.lastUpdated).toLocaleTimeString());
         updateTickerItems(cachedData.items);
         setLastUpdated(cachedData.lastUpdated);
         setIsLoading(false);
-        if (Date.now() - cachedData.lastUpdated < 60000) {
+        
+        // Skip API call if cache is fresh enough
+        if (now - cachedData.lastUpdated < CACHE_DURATION) {
+          console.log('Cache is fresh, skipping API call');
           return;
         }
       }
@@ -156,16 +181,32 @@ const useBtcPrice = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetchWithRetry(
-        'https://api.coingecko.com/api/v3/coins/markets',
-        {
-          params: {
-            vs_currency: 'usd',
-            ids: 'bitcoin,ethereum,pax-gold',
-            price_change_percentage: '24h',
-          },
-        }
-      );
+      // First try with pax-gold, fallback to gold if that fails
+      let response;
+      try {
+        response = await fetchWithRetry(
+          'https://api.coingecko.com/api/v3/coins/markets',
+          {
+            params: {
+              vs_currency: 'usd',
+              ids: 'bitcoin,ethereum,pax-gold',
+              price_change_percentage: '24h',
+            },
+          }
+        );
+      } catch (err) {
+        console.log('Failed to fetch pax-gold, trying gold...');
+        response = await fetchWithRetry(
+          'https://api.coingecko.com/api/v3/coins/markets',
+          {
+            params: {
+              vs_currency: 'usd',
+              ids: 'bitcoin,ethereum,gold',
+              price_change_percentage: '24h',
+            },
+          }
+        );
+      }
       
       const data = response.data.reduce((acc: any, coin: any) => {
         acc[coin.id] = coin;
@@ -174,9 +215,10 @@ const useBtcPrice = () => {
       
       const btcData = data.bitcoin;
       const ethData = data.ethereum;
-      const goldData = data['pax-gold'];
+      const goldData = data['pax-gold'] || data.gold;
       
       if (!btcData || !ethData || !goldData) {
+        console.error('Incomplete data received from API:', { btcData: !!btcData, ethData: !!ethData, goldData: !!goldData });
         throw new Error('Incomplete data received from API');
       }
       
@@ -184,8 +226,9 @@ const useBtcPrice = () => {
       const btcEthChange24h = ((btcData.price_change_percentage_24h - ethData.price_change_percentage_24h) / 
         (1 + ethData.price_change_percentage_24h / 100)) || 0;
       
-      // Gold price per ounce in USD
-      const goldPricePerOz = goldData.current_price * 31.1;
+      // Gold price per ounce in USD (pax-gold is 1:1 with gold price, but we need to check the actual value)
+      // The CoinGecko API returns price per token, and pax-gold is 1 token = 1 troy ounce
+      const goldPricePerOz = goldData.current_price;
       
       const updatedItems: TickerItem[] = [
         { 
@@ -239,11 +282,26 @@ const useBtcPrice = () => {
 
   useEffect(() => {
     isMounted.current = true;
-    fetchBtcPrice();
     
-    const intervalId = setInterval(fetchBtcPrice, REFRESH_INTERVAL);
+    // Initial fetch
+    console.log('Initial fetch...');
+    fetchBtcPrice().catch(err => {
+      console.error('Error in initial fetch:', err);
+      setError('Failed to load initial data. Using cached data if available.');
+    });
     
+    // Set up refresh interval
+    const intervalId = setInterval(() => {
+      console.log('Refreshing data...');
+      fetchBtcPrice().catch(err => {
+        console.error('Error in refresh:', err);
+        setError('Failed to refresh data. Using cached data if available.');
+      });
+    }, REFRESH_INTERVAL);
+    
+    // Cleanup
     return () => {
+      console.log('Cleaning up...');
       isMounted.current = false;
       clearInterval(intervalId);
     };

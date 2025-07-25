@@ -164,15 +164,15 @@ export default function BitcoinPriceCalculator() {
             <div className="space-y-4">
               {/* Comparison Cards */}
               <div className="grid md:grid-cols-2 gap-4">
-                <div className={`backdrop-blur-lg rounded-2xl p-4 border transition-all ${
+                <div className={`backdrop-blur-lg rounded-2xl p-4 border-2 transition-all ${
                   calc.betterDeal === 1 
-                    ? 'bg-emerald-500/20 border-emerald-400/40 shadow-lg shadow-emerald-500/20' 
-                    : 'bg-white/5 border-white/10'
+                    ? 'bg-emerald-500/30 border-emerald-400/60 shadow-lg shadow-emerald-500/30' 
+                    : 'bg-white/10 border-white/20'
                 }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-white/90 font-semibold text-sm">Price 1</span>
+                    <span className="text-white font-semibold text-sm">Price 1</span>
                     {calc.betterDeal === 1 && (
-                      <div className="flex items-center gap-1 text-emerald-300 text-xs">
+                      <div className="flex items-center gap-1 text-white text-xs">
                         <TrendingUp className="w-3 h-3" />
                         <span>Better</span>
                       </div>
@@ -181,28 +181,28 @@ export default function BitcoinPriceCalculator() {
                   <div className="space-y-2">
                     <div className="flex flex-col gap-1">
                       {calc.betterDeal === 2 && (
-                        <p className="text-emerald-400 text-sm font-medium">
+                        <p className="text-white text-sm font-semibold">
                           {currency === 'USD' ? '$' : '€'}
                           {Math.abs(calc.investmentDiff).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                           {' more value'}
                         </p>
                       )}
-                      <p className="text-white text-lg font-bold">
-                        {calc.btc1.toFixed(6)} BTC
+                      <p className="text-white font-bold text-xl">
+                        {calc.btc1.toFixed(6)} <span className="text-white text-base font-semibold">BTC</span>
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className={`backdrop-blur-lg rounded-2xl p-4 border transition-all ${
+                <div className={`backdrop-blur-lg rounded-2xl p-4 border-2 transition-all ${
                   calc.betterDeal === 2 
-                    ? 'bg-emerald-500/20 border-emerald-400/40 shadow-lg shadow-emerald-500/20' 
-                    : 'bg-white/5 border-white/10'
+                    ? 'bg-emerald-500/30 border-emerald-400/60 shadow-lg shadow-emerald-500/30' 
+                    : 'bg-white/10 border-white/20'
                 }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-white/90 font-semibold text-sm">Price 2</span>
+                    <span className="text-white font-semibold text-sm">Price 2</span>
                     {calc.betterDeal === 2 && (
-                      <div className="flex items-center gap-1 text-emerald-300 text-xs">
+                      <div className="flex items-center gap-1 text-white text-xs">
                         <TrendingUp className="w-3 h-3" />
                         <span>Better</span>
                       </div>
@@ -211,14 +211,14 @@ export default function BitcoinPriceCalculator() {
                   <div className="space-y-2">
                     <div className="flex flex-col gap-1">
                       {calc.betterDeal === 1 && (
-                        <p className="text-red-400 text-sm font-medium">
+                        <p className="text-white text-sm font-semibold">
                           {currency === 'USD' ? '$' : '€'}
                           {Math.abs(calc.investmentDiff).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                           {' less value'}
                         </p>
                       )}
-                      <p className="text-white text-lg font-bold">
-                        {calc.btc2.toFixed(6)} BTC
+                      <p className="text-white font-bold text-xl">
+                        {calc.btc2.toFixed(6)} <span className="text-white text-base font-semibold">BTC</span>
                       </p>
                     </div>
                   </div>
@@ -227,16 +227,24 @@ export default function BitcoinPriceCalculator() {
 
               {/* Key Metrics Row */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="backdrop-blur-lg bg-white/5 rounded-xl p-3 border border-white/10 text-center">
-                  <p className="text-white/60 text-xs mb-1">Investment Value Difference</p>
-                  <p className="text-white font-bold text-sm">
-                    {currency === 'USD' ? '$' : '€'}
-                    {Math.abs(calc.investmentDiff).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                  </p>
+                <div className="backdrop-blur-lg bg-white/10 rounded-xl p-3 border-2 border-white/20 text-center">
+                  <p className="text-white text-xs mb-1 font-medium">Investment Value Difference</p>
+                  <div className="text-center text-white text-sm font-medium">
+                    <p>Value difference: <span className="font-bold">{currency === 'USD' ? '$' : '€'}{Math.abs(calc.investmentDiff).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></p>
+                    <p className="text-xs opacity-80">
+                      When buying at {currency === 'USD' ? '$' : '€'}
+                      {currency === 'USD' 
+                        ? calc.p1Sel.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})
+                        : (calc.p1Sel * usdToEur).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})} vs {currency === 'USD' ? '$' : '€'}
+                      {currency === 'USD' 
+                        ? calc.p2Sel.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})
+                        : (calc.p2Sel * usdToEur).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                    </p>
+                  </div>
                 </div>
-                <div className="backdrop-blur-lg bg-emerald-500/20 rounded-xl p-3 border border-emerald-400/30 text-center">
-                  <p className="text-emerald-200 text-xs mb-1">Better Choice</p>
-                  <p className="text-emerald-100 font-bold text-sm">
+                <div className="backdrop-blur-lg bg-emerald-500/30 rounded-xl p-3 border-2 border-emerald-400/50 text-center">
+                  <p className="text-white text-xs mb-1 font-semibold">Better Choice</p>
+                  <p className="text-white font-bold text-base">
                     Price {calc.betterDeal}
                   </p>
                 </div>
